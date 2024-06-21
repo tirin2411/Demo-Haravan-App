@@ -1,0 +1,21 @@
+{
+  "name": "sample-app",
+  "version": "0.0.0",
+  "private": false,
+  "apiKey": "3c0bb5370ea3396c31d9f1ee1794eca1",
+  "shopOrigin": "cd37-14-161-37-191.ngrok-free.app",
+  "embedded": true,
+  "scripts": {
+    "start": "node ./bin/www"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cookie-parser": "~1.4.4",
+    "debug": "~2.6.9",
+    "express": "^4.19.2",
+    "http-errors": "~1.6.3",
+    "jade": "^0.29.0",
+    "morgan": "~1.9.1",
+    "oauth": "^0.10.0"
+  }
+}
