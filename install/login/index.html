@@ -1,0 +1,10 @@
+<script>
+    const client_id = '3c0bb5370ea3396c31d9f1ee1794eca1';
+    const redirect_uri = 'https://tirin2411.github.io/Demo-Haravan-App/install/grandservice';
+    const url_authorize = 'https://accounts.haravan.com/connect/authorize';
+    const scope = 'openid profile address email phone org userinfo grant_service web.write_themes web.read_themes web.write_script_tags web.read_script_tags com.read_shippings com.read_orders com.read_shipping_zones com.read_products com.read_customers com.read_discounts com.read_inventories wh_api';
+
+    const authUrl = `${url_authorize}?response_type=code&client_id=${client_id}&redirect_uri=${redirect_uri}&scope=${encodeURIComponent(scope)}`;
+
+    window.location.href = authUrl;
+</script>

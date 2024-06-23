@@ -1,0 +1,50 @@
+<script>
+    const client_id = '3c0bb5370ea3396c31d9f1ee1794eca1';
+    const redirect_uri = 'https://tirin2411.github.io/Demo-Haravan-App/install/grandservice';
+    const url_authorize = 'https://accounts.haravan.com/connect/authorize';
+    const scope = 'openid profile address email phone org userinfo grant_service web.write_themes web.read_themes web.write_script_tags web.read_script_tags com.read_shippings com.read_orders com.read_shipping_zones com.read_products com.read_customers com.read_discounts com.read_inventories wh_api';
+
+    const authUrl = `${url_authorize}?response_type=code&client_id=${client_id}&redirect_uri=${redirect_uri}&scope=${encodeURIComponent(scope)}`;
+
+    window.location.href = authUrl;
+
+    // Hàm này giả sử bạn đã nhận được mã xác thực và muốn trao đổi lấy access token
+    function getAccessToken(code) {
+      const client_id = '3c0bb5370ea3396c31d9f1ee1794eca1';
+      const client_secret = 'bf74aaecc04f923f2f0ab42c66d860847bad2db1cf5fcf8391f3d43802be7ecb';
+      const redirect_uri = 'https://tirin2411.github.io/Demo-Haravan-App/install/grandservice';
+      const url_connect_token = 'https://accounts.haravan.com/connect/token';
+
+      const data = new URLSearchParams();
+      data.append('grant_type', 'authorization_code');
+      data.append('code', code);
+      data.append('redirect_uri', redirect_uri);
+      data.append('client_id', client_id);
+      data.append('client_secret', client_secret);
+
+      fetch(url_connect_token, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: data
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Access Token:', data.access_token);
+        console.log('Refresh Token:', data.refresh_token);
+        // Tiếp tục xử lý sau khi nhận được access token và refresh token
+        window.location.href = 'https://tirin2411.github.io/Demo-Haravan-App/';
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
+    }
+
+    // Lấy mã xác thực từ URL sau khi người dùng được chuyển hướng từ Haravan
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (code) {
+      getAccessToken(code);
+    }
+  </script>
