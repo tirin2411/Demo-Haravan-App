@@ -1,4 +1,4 @@
-<script>
+
   //console.log('request.page_type', "{{ template }}" );
   // Constants
   var _cdpBtnAddtocart = '#add-to-cart';
@@ -1162,4 +1162,3 @@ window.addEventListener("load", (event) => {
 });
 {% endif %}
 
-</script>
