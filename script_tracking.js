@@ -1,6 +1,4 @@
-<script>
-  //console.log('request.page_type', "{{ template }}" );
-  // Constants
+// Constants
   var _cdpBtnAddtocart = '#add-to-cart';
   var _cdpBtnBuyNow = '#buy-now';
   var _cdpQuantityAddCart = '.quantity-input';
@@ -424,10 +422,10 @@
         option1: item.variant_options[0],
         option2: item.variant_options[1],
         option3: item.variant_options[2],
-        haravan_product_id: `${item.variant_id}`,
+        haravan_product_id: item.variant_id,
         parent_item_id: item.sku,
         is_parent: "false",
-        quantity: `${item.quantity}`,
+        quantity: item.quantity,
         source_website: _cdpSourceWebsite
       };
       if (view_cart) {
@@ -466,7 +464,7 @@
         name: product.title,
         sku: currentVariant.sku,
         page_url: window.location.href,
-        image_url: `${product.featured_image}`,
+        image_url: product.featured_image,
         price: currentVariant.price / 100,
         original_price:
           currentVariant.compare_at_price > 0
@@ -757,8 +755,8 @@
           line_item_unit_price: item.price / 100,
           line_item_discount_amount: (item.price - item.discounted_price) / 100,
           line_item_rounded_amount: item.discounted_price / 100,
-          quantity: `${item.quantity}`,
-          line_item_quantity: `${item.quantity}`,
+          quantity: item.quantity,
+          line_item_quantity: item.quantity,
           source_website: _cdpSourceWebsite
         };
       });
@@ -782,384 +780,287 @@
     }
   }
 
-  {% comment %} Init CDP tracking  {% endcomment %}
-  
-  window.cdpTracking = new CDPTracking();
+  // Init CDP tracking
+window.cdpTracking = new CDPTracking();
 
-  {% comment %} Customer event {% endcomment %}
-  {% if customer %}
-  window.addEventListener("load", (event)=>{
+// Customer event
+document.addEventListener("DOMContentLoaded", function() {
+  const customer = {{ customer | json }};
+  if (customer) {
     const phone = "{{ customer.default_address.phone | replace : '+84' , '0' }}";
     let customer_id = '';
 
     if (phone !== "") {
       customer_id = _cdpMD5(phone);
     }
-    const customer = {
-      customer_id : customer_id,
+    const customerInfo = {
+      customer_id: customer_id,
       name: "{{ customer.name }}",
       email: "{{ customer.email }}",
       phone: phone,
-    }
-    //console.log("customer", customer)
-    if(customer.customer_id){
-      window.cdpTracking.setCustomers(customer)
-      window.localStorage.setItem("cdp_customer", JSON.stringify(customer))
-      const loginSubmitted = sessionStorage.getItem('loginSubmitted')
-      const registerSubmitted = sessionStorage.getItem('registerSubmitted')
-      if(registerSubmitted && !loginSubmitted){
-        //console.log('customer info: ', customer);
-        window.cdpTracking.userSignUp()
-        sessionStorage.removeItem('registerSubmitted')
+    };
 
+    if (customerInfo.customer_id) {
+      window.cdpTracking.setCustomers(customerInfo);
+      window.localStorage.setItem("cdp_customer", JSON.stringify(customerInfo));
+      const loginSubmitted = sessionStorage.getItem('loginSubmitted');
+      const registerSubmitted = sessionStorage.getItem('registerSubmitted');
+      if (registerSubmitted && !loginSubmitted) {
+        window.cdpTracking.userSignUp();
+        sessionStorage.removeItem('registerSubmitted');
       }
-      if(loginSubmitted){
-        window.cdpTracking.userSignIn()
+      if (loginSubmitted) {
+        window.cdpTracking.userSignIn();
+        sessionStorage.removeItem('loginSubmitted');
       }
 
-    sessionStorage.removeItem('loginSubmitted')
-      
-    const identityUser =   window.cdpTracking.getCookie('cdp_identity_user')
-      if(!identityUser){
-        window.cdpTracking.setCookie('cdp_identity_user', true)
-        window.cdpTracking.identify()
+      const identityUser = window.cdpTracking.getCookie('cdp_identity_user');
+      if (!identityUser) {
+        window.cdpTracking.setCookie('cdp_identity_user', true);
+        window.cdpTracking.identify();
       }
     }
-  
-  
-    })
-    {%else%}
-    window.localStorage.removeItem('cdp_customer')
-  {% endif %}
-
-  {% comment %} ***** View product event ***** {% endcomment %}
-
-  
-  {%- if template contains 'product' -%}
-    window.addEventListener("load", (event) => {
-    const product = {{ product | json }};
-  
-        //console.log('product', product)
-        window.cdpTracking.currentProduct = product;
-      let currentVariant = window.cdpTracking.getCurrentVariant(product, {{ product.selected_or_first_available_variant.id }})  
-      //console.log('currentVariant', currentVariant);
-      window.cdpTracking.viewProduct(product, currentVariant)
-
-      var option1ValueEL;
-      var option2ValueEL;
-      var option3ValueEL;
-      var viewChild = true;
-      var buttonsOption1 = document.querySelectorAll('#variant-swatch-0 > div.select-swap > div.n-sd.swatch-element > label');
-
-      for (let i = 0; i < buttonsOption1.length; i++) {
-        buttonsOption1[i].addEventListener('click', () => {
-          setTimeout(() => {
-            var labelOption1El = buttonsOption1[i];
-            var swatchOption1El = labelOption1El.parentElement;
-            var option1EL = swatchOption1El.querySelector("input");
-            option1ValueEL = option1EL.value;
-
-            option2ValueEL = document.querySelector("#variant-swatch-1 > div.select-swap > div.n-sd.swatch-element > label.sd > span");
-            if(option2ValueEL){
-              option2ValueEL = option2ValueEL.textContent;
-            }
-
-            option3ValueEL = document.querySelector("#variant-swatch-2 > div.select-swap > div.n-sd.swatch-element > label.sd > span");
-            if(option3ValueEL){
-              option3ValueEL = option3ValueEL.textContent;
-            }
-            window.cdpTracking.viewProduct(product, currentVariant, option1ValueEL, option2ValueEL, option3ValueEL, viewChild);
-          }, 0);
-        });
-      }
-
-      var buttonsOption2 = document.querySelectorAll('#variant-swatch-1 > div.select-swap > div.n-sd.swatch-element > label');
-      for (let i = 0; i < buttonsOption2.length; i++) {
-        buttonsOption2[i].addEventListener('click', () => {
-          setTimeout(() => {
-              var labelOption2El = buttonsOption2[i];
-              var swatchOption2El = labelOption2El.parentElement;
-              var option2EL = swatchOption2El.querySelector("input");
-              option2ValueEL = option2EL.value;
-              option3ValueEL = document.querySelector("#variant-swatch-2 > div.select-swap > div.n-sd.swatch-element > label.sd > span");
-              if(option3ValueEL){
-                option3ValueEL = option3ValueEL.textContent;
-              }
-              window.cdpTracking.viewProduct(product, currentVariant, option1ValueEL, option2ValueEL, option3ValueEL, viewChild);
-          }, 0);
-        });
-      }
-
-      var buttonsOption3 = document.querySelectorAll('#variant-swatch-2 > div.select-swap > div.n-sd.swatch-element > label');
-      for (let i = 0; i < buttonsOption3.length; i++) {
-        buttonsOption3[i].addEventListener('click', () => {
-          setTimeout(() => {
-              var labelOption3El = buttonsOption3[i];
-              var swatchOption3El = labelOption3El.parentElement;
-              var option3EL = swatchOption3El.querySelector("input");
-              option3ValueEL = option3EL.value;
-              window.cdpTracking.viewProduct(product, currentVariant, option1ValueEL, option2ValueEL, option3ValueEL, viewChild);
-          }, 0); 
-        });
-      }
-
-    });
-
-    {% comment %} ***** ADD TO CART ***** {% endcomment %}
-    waitForElement({
-        type: 'element',
-        selector: _cdpBtnAddtocart,
-        callback: function (btnAddtocart) {
-            try {
-                const product = {{ product | json }};
-                btnAddtocart.addEventListener("click", function () {
-                  let currentVariantAddtocart = window.cdpTracking.getCurrentVariant(product, window.cdpTracking.getCurrentVariantId()) 
-                  
-                  let itemAdded = {
-                    type: "product",
-                    cdp_source: this.cdp_source,
-                    id: currentVariantAddtocart.id,
-                    name: product.title,
-                    sku: currentVariantAddtocart.sku,
-                    page_url: window.location.href,
-                    image_url: product.featured_image,
-                    price: currentVariantAddtocart.price / 100,
-                    original_price:
-                    currentVariantAddtocart.compare_at_price > 0
-                        ? currentVariantAddtocart.compare_at_price / 100
-                        : currentVariantAddtocart.price / 100,
-                    brand: product.vendor,
-                    main_category: product.product_type,
-                    // variant: currentVariantAddtocart.title,
-                    haravan_product_id: `${currentVariantAddtocart.id}`,
-                    parent_item_id: currentVariantAddtocart.sku,
-                    is_parent: "false",
-                    source_website: _cdpSourceWebsite
-                  };
-                  if(currentVariantAddtocart.option1 !== ""){
-                    itemAdded.option1= currentVariantAddtocart.option1;
-                  }
-                  if(currentVariantAddtocart.option2 !== ""){
-                    itemAdded.option2= currentVariantAddtocart.option2;
-                  }
-                  if(currentVariantAddtocart.option3 !== ""){
-                    itemAdded.option3= currentVariantAddtocart.option3;
-                  }
-
-                  _cdpGetCart(function (cart) {
-                    try {
-                      if (cart) {
-                          var carts = cart;
-                          window.cdpTracking.addToCart(itemAdded, carts);
-                      }
-                    }
-                    catch (ex) {
-                      console.log("cdp log:", ex);
-                    }
-                  });
-                })
-            }
-            catch (ex) {
-                console.log("cdp log: ", ex);
-            }
-        }
-    });
-
-    {% comment %} ***** BUY NOW ***** {% endcomment %}
-    waitForElement({
-        type: 'element',
-        selector: _cdpBtnBuyNow,
-        callback: function (btnBuyNow) {
-            try {
-                const product = {{ product | json }};
-                btnBuyNow.addEventListener("click", function () {
-                  let currentVariantBuyNow = window.cdpTracking.getCurrentVariant(product, window.cdpTracking.getCurrentVariantId()) 
-                  
-                  let itemAdded = {
-                    type: "product",
-                    cdp_source: this.cdp_source,
-                    id: currentVariantBuyNow.id,
-                    name: product.title,
-                    sku: currentVariantBuyNow.sku,
-                    page_url: window.location.href,
-                    image_url: product.featured_image,
-                    price: currentVariantBuyNow.price / 100,
-                    original_price:
-                    currentVariantBuyNow.compare_at_price > 0
-                        ? currentVariantBuyNow.compare_at_price / 100
-                        : currentVariantBuyNow.price / 100,
-                    brand: product.vendor,
-                    main_category: product.product_type,
-                    // variant: currentVariantBuyNow.title,
-                    haravan_product_id: `${currentVariantBuyNow.id}`,
-                    parent_item_id: currentVariantBuyNow.sku,
-                    is_parent: "false",
-                    source_website: _cdpSourceWebsite
-                  };
-                  if(currentVariantBuyNow.option1 !== ""){
-                    itemAdded.option1= currentVariantBuyNow.option1;
-                  }
-                  if(currentVariantBuyNow.option2 !== ""){
-                    itemAdded.option2= currentVariantBuyNow.option2;
-                  }
-                  if(currentVariantBuyNow.option3 !== ""){
-                    itemAdded.option3= currentVariantBuyNow.option3;
-                  }
-                  
-                  _cdpGetCart(function (cart) {
-                    try {
-                      if (cart) {
-                          var carts = cart;
-                          window.cdpTracking.buyNow(itemAdded, carts);
-                      }
-                    }
-                    catch (ex) {
-                      console.log("cdp log:", ex);
-                    }
-                  });
-                })
-            }
-            catch (ex) {
-                console.log("cdp log: ", ex);
-            }
-        }
-    });
-  
-  {% endif %}
-
-  {% comment %} ***** VIEW CART ***** {% endcomment %}
-  {%- if template contains 'cart' -%}
-  var onRemoveCart = function (handleId, cartItems, carts) {
-    return function () {
-      try {
-        //console.log('cartItems in onRemoveCart: ',JSON.stringify(cartItems));
-        var removingProduct;
-        for (var j = 0; j < cartItems.length; j++) {
-            if (cartItems[j] && cartItems[j].variant_id == handleId) {
-                removingProduct = cartItems[j];
-                break;
-            }
-        }
-        var id = removingProduct.variant_id;
-        var btnConfirm = document.querySelector(_cdpBtnConfirmRemoveCart);
-        if(btnConfirm){
-          btnConfirm.addEventListener("click", function () {
-            setTimeout(() => {
-            window.cdpTracking.removeFromCart(id, carts)
-            }, 0);
-
-          })
-        }
-        
-      }
-      catch (e) {
-          console.log("cdp log:", e);
-      }
-    }
+  } else {
+    window.localStorage.removeItem('cdp_customer');
   }
+});
+
+// View product event
+if (window.location.pathname.includes('products')) {
+  document.addEventListener("DOMContentLoaded", function() {
+    const product = {{ product | json }};
+    window.cdpTracking.currentProduct = product;
+    let currentVariant = window.cdpTracking.getCurrentVariant(product, {{ product.selected_or_first_available_variant.id }});
+
+    window.cdpTracking.viewProduct(product, currentVariant);
+
+    const handleOptionChange = (optionSelector, optionValueEl, callback) => {
+      const optionElements = document.querySelectorAll(optionSelector);
+      optionElements.forEach(element => {
+        element.addEventListener('click', () => {
+          setTimeout(() => {
+            optionValueEl.value = element.querySelector("input").value;
+            callback();
+          }, 0);
+        });
+      });
+    };
+
+    handleOptionChange('#variant-swatch-0 > div.select-swap > div.n-sd.swatch-element > label', option1ValueEL, () => {
+      window.cdpTracking.viewProduct(product, currentVariant, option1ValueEL.value, option2ValueEL.textContent, option3ValueEL.textContent, true);
+    });
+    handleOptionChange('#variant-swatch-1 > div.select-swap > div.n-sd.swatch-element > label', option2ValueEL, () => {
+      window.cdpTracking.viewProduct(product, currentVariant, option1ValueEL.value, option2ValueEL.value, option3ValueEL.textContent, true);
+    });
+    handleOptionChange('#variant-swatch-2 > div.select-swap > div.n-sd.swatch-element > label', option3ValueEL, () => {
+      window.cdpTracking.viewProduct(product, currentVariant, option1ValueEL.value, option2ValueEL.value, option3ValueEL.value, true);
+    });
+  });
+
+  // Add to cart
+  waitForElement({
+    type: 'element',
+    selector: _cdpBtnAddtocart,
+    callback: function(btnAddtocart) {
+      const product = {{ product | json }};
+      btnAddtocart.addEventListener("click", function() {
+        let currentVariantAddtocart = window.cdpTracking.getCurrentVariant(product, window.cdpTracking.getCurrentVariantId());
+        let itemAdded = {
+          type: "product",
+          cdp_source: this.cdp_source,
+          id: currentVariantAddtocart.id,
+          name: product.title,
+          sku: currentVariantAddtocart.sku,
+          page_url: window.location.href,
+          image_url: product.featured_image,
+          price: currentVariantAddtocart.price / 100,
+          original_price: currentVariantAddtocart.compare_at_price > 0 ? currentVariantAddtocart.compare_at_price / 100 : currentVariantAddtocart.price / 100,
+          brand: product.vendor,
+          main_category: product.product_type,
+          haravan_product_id: currentVariantAddtocart.id,
+          parent_item_id: currentVariantAddtocart.sku,
+          is_parent: "false",
+          source_website: _cdpSourceWebsite
+        };
+        if (currentVariantAddtocart.option1 !== "") {
+          itemAdded.option1 = currentVariantAddtocart.option1;
+        }
+        if (currentVariantAddtocart.option2 !== "") {
+          itemAdded.option2 = currentVariantAddtocart.option2;
+        }
+        if (currentVariantAddtocart.option3 !== "") {
+          itemAdded.option3 = currentVariantAddtocart.option3;
+        }
+
+        _cdpGetCart(function(cart) {
+          try {
+            if (cart) {
+              window.cdpTracking.addToCart(itemAdded, cart);
+            }
+          } catch (ex) {
+            console.log("cdp log:", ex);
+          }
+        });
+      });
+    }
+  });
+
+  // Buy now
+  waitForElement({
+    type: 'element',
+    selector: _cdpBtnBuyNow,
+    callback: function(btnBuyNow) {
+      const product = {{ product | json }};
+      btnBuyNow.addEventListener("click", function() {
+        let currentVariantBuyNow = window.cdpTracking.getCurrentVariant(product, window.cdpTracking.getCurrentVariantId());
+        let itemAdded = {
+          type: "product",
+          cdp_source: this.cdp_source,
+          id: currentVariantBuyNow.id,
+          name: product.title,
+          sku: currentVariantBuyNow.sku,
+          page_url: window.location.href,
+          image_url: product.featured_image,
+          price: currentVariantBuyNow.price / 100,
+          original_price: currentVariantBuyNow.compare_at_price > 0 ? currentVariantBuyNow.compare_at_price / 100 : currentVariantBuyNow.price / 100,
+          brand: product.vendor,
+          main_category: product.product_type,
+          haravan_product_id: currentVariantBuyNow.id,
+          parent_item_id: currentVariantBuyNow.sku,
+          is_parent: "false",
+          source_website: _cdpSourceWebsite
+        };
+        if (currentVariantBuyNow.option1 !== "") {
+          itemAdded.option1 = currentVariantBuyNow.option1;
+        }
+        if (currentVariantBuyNow.option2 !== "") {
+          itemAdded.option2 = currentVariantBuyNow.option2;
+        }
+        if (currentVariantBuyNow.option3 !== "") {
+          itemAdded.option3 = currentVariantBuyNow.option3;
+        }
+
+        _cdpGetCart(function(cart) {
+          try {
+            if (cart) {
+              window.cdpTracking.buyNow(itemAdded, cart);
+            }
+          } catch (ex) {
+            console.log("cdp log:", ex);
+          }
+        });
+      });
+    }
+  });
+}
+
+// View cart
+if (window.location.pathname.includes('cart')) {
+  const onRemoveCart = function(handleId, cartItems, carts) {
+    return function() {
+      try {
+        let removingProduct;
+        for (let j = 0; j < cartItems.length; j++) {
+          if (cartItems[j] && cartItems[j].variant_id == handleId) {
+            removingProduct = cartItems[j];
+            break;
+          }
+        }
+        const id = removingProduct.variant_id;
+        const btnConfirm = document.querySelector(_cdpBtnConfirmRemoveCart);
+        if (btnConfirm) {
+          btnConfirm.addEventListener("click", function() {
+            setTimeout(() => {
+              window.cdpTracking.removeFromCart(id, carts);
+            }, 0);
+          });
+        }
+      } catch (e) {
+        console.log("cdp log:", e);
+      }
+    };
+  };
 
   waitForElement({
     type: 'element',
     selector: _cdpCartListItems,
-    callback: function (cartListItem) {
-        try {
-            if (cartListItem) {
-                _cdpGetCart(function (cart) {
+    callback: function(cartListItem) {
+      try {
+        if (cartListItem) {
+          _cdpGetCart(function(cart) {
+            try {
+              if (cart) {
+                const carts = cart;
+                const cartItems = cart.items;
+                window.cdpTracking.viewCart(carts);
+
+                if (cartItems.length) {
+                  const cartItemArr = cartListItem.querySelectorAll(_cdpCartItemArr);
+                  if (cartItemArr) {
                     try {
-                        if (cart) {
-                          var carts = cart;
-                          var cartItems = cart.items
-                          //console.log('cartItems', JSON.stringify(cartItems));
-                          window.cdpTracking.viewCart(carts);
-
-                          var cartItems = cart.items;
-                          if (cartItems.length) {
-                              var cartItemArr = cartListItem.querySelectorAll(_cdpCartItemArr);
-                              if (cartItemArr) {
-                                  try {
-                                      for (var i = 0; i < cartItemArr.length; i++) {
-                                          var btnRemove = cartItemArr[i].querySelector(_cdpBtnRemoveCart);
-                                          var handleId = cartItemArr[i].getAttribute("data-variant-id");
-                                          
-                                          btnRemove.addEventListener("click", onRemoveCart(handleId, [...cartItems], carts));
-                                      }
-
-                                  } catch (ex) {
-                                      console.log("cdp log: ", ex);
-                                  }
-
-                              }
-                          }
-                        }
+                      for (let i = 0; i < cartItemArr.length; i++) {
+                        const btnRemove = cartItemArr[i].querySelector(_cdpBtnRemoveCart);
+                        const handleId = cartItemArr[i].getAttribute("data-variant-id");
+                        btnRemove.addEventListener("click", onRemoveCart(handleId, [...cartItems], carts));
+                      }
+                    } catch (ex) {
+                      console.log("cdp log: ", ex);
                     }
-                    catch (ex) {
-                        console.log("cdp log:", ex);
-                    }
-                });
+                  }
+                }
+              }
+            } catch (ex) {
+              console.log("cdp log:", ex);
             }
-
+          });
         }
-        catch (ex) {
-            console.log("cdp log: ", ex);
-        }
-    }
-  });
-  {% endif %}
-
-  waitForElement({
-    type: 'element',
-    selector: _cdpFormSignIn,
-    callback: function (formLogin) {
-        try {
-          formLogin.addEventListener('submit', function(){
-            sessionStorage.setItem('loginSubmitted', 1);
-          })
-        }
-        catch (ex) {
-            console.log("cdp log: ", ex);
-        }
-    }
-  });
-
-  {% comment %} ***** SIGN-UP ***** {% endcomment %}
-  if (window.location.href.includes("/account/register")){
-    waitForElement({
-      type: 'element',
-      selector: _cdpFormSignUp,
-      callback: function (formSignUp) {
-          try {
-            formSignUp.addEventListener('submit', function(){
-              sessionStorage.setItem('registerSubmitted', 1);
-            })
-          }
-          catch (ex) {
-              console.log("cdp log: ", ex);
-          }
+      } catch (ex) {
+        console.log("cdp log:", ex);
       }
-    });
-  }
+    }
+  });
+}
 
-{% comment %} Search product event {% endcomment %}
-{% if template contains 'search' %}
-
-window.addEventListener("load", (event) => {
-  const str = "{{ search.terms | escape }}";
-  const startIndex = str.indexOf('contains ') + 'contains '.length;
-  const endIndex = str.indexOf(')');
-  const searchTerm = str.substring(startIndex, endIndex);
-
-
-  const products = [
-    {% for item in search.results %}
-      {% if item.object_type == 'product' %}
-      {{ item | json }},
-    {% endif %}
-    {% endfor %}
-  ];
-  if (searchTerm) {
-    window.cdpTracking.proudctSearch(products, searchTerm);
+// Sign in
+waitForElement({
+  type: 'element',
+  selector: _cdpFormSignIn,
+  callback: function(formLogin) {
+    try {
+      formLogin.addEventListener('submit', function() {
+        sessionStorage.setItem('loginSubmitted', 1);
+      });
+    } catch (ex) {
+      console.log("cdp log: ", ex);
+    }
   }
 });
-{% endif %}
 
-</script>
+// Sign up
+if (window.location.href.includes("/account/register")) {
+  waitForElement({
+    type: 'element',
+    selector: _cdpFormSignUp,
+    callback: function(formSignUp) {
+      try {
+        formSignUp.addEventListener('submit', function() {
+          sessionStorage.setItem('registerSubmitted', 1);
+        });
+      } catch (ex) {
+        console.log("cdp log: ", ex);
+      }
+    }
+  });
+}
+
+// Search product event
+if (window.location.pathname.includes('search')) {
+  document.addEventListener("DOMContentLoaded", function() {
+    const searchTerm = "{{ search.terms }}";
+    const products = {{ search.results | json }};
+
+    if (searchTerm) {
+      window.cdpTracking.proudctSearch(products, searchTerm);
+    }
+  });
+}
