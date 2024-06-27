@@ -1,5 +1,4 @@
-(function() { 
-  console.log('request.page_type', "{{ template }}" );
+  // console.log('request.page_type', "{{ template }}" );
   // Constants
   var _cdpBtnAddtocart = '#add-to-cart';
   var _cdpBtnBuyNow = '#buy-now';
@@ -563,7 +562,6 @@
 window.cdpTracking = new CDPTracking();
 
 // Customer event
-document.addEventListener("DOMContentLoaded", function() {
   if (typeof Haravan !== 'undefined' && Haravan.customer) {
     const customer = Haravan.customer;
     const phone = customer.default_address ? customer.default_address.phone.replace('+84', '0') : '';
@@ -750,5 +748,3 @@ document.addEventListener("DOMContentLoaded", function() {
       window.cdpTracking.proudctSearch(products, searchTerm);
     }
   }
-});
-})();
