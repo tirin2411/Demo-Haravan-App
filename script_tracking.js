@@ -208,7 +208,7 @@ var cdpProductDetailTracking = function () {
             items: [products],
           };
 
-          web_event.queue.push(["track", "product", "view", dataProps]);
+          web_event.track("product", "view", dataProps);
           // console.log(dataProps)
           // button buy now
           jQuery("button.buynow-detail").on("click", function () {
