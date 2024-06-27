@@ -132,9 +132,6 @@ var _cdpGetProductDetail = function (callback, _handleId) {
                             var name = product.title;
                             var image_url = product.featured_image;
                             var page_url = "https://" + Haravan.domain + product.url;
-                            var main_category = document.querySelectorAll('div.main-breadcrumb ol li')[1].innerText.trim();
-                            var brand = product.vendor;
-
                             var variant = null;
                             for (var i = 0; i < product.variants.length; i++) {
                               var currVariant = product.variants[i];
@@ -206,6 +203,7 @@ var _cdpGetProductDetail = function (callback, _handleId) {
 var cdpProductDetailTracking = function () {
   try {
     if (window.location.href.includes("/products")) {
+      console.log('view_product_nè');
       _cdpGetProductDetail(function (products) {
         if (products) {
           var dataProps = {
