@@ -1,750 +1,962 @@
-  // console.log('request.page_type', "{{ template }}" );
-  // Constants
-  var _cdpBtnAddtocart = '#add-to-cart';
-  var _cdpBtnBuyNow = '#buy-now';
-  var _cdpQuantityAddCart = '.quantity-input';
-  var _cdpFormSignIn = 'form#customer_login';
-  var _cdpFormSignUp = 'form#create_customer';
+var _cdpGetCookie = function (cookieName) {
+  var cookiePattern = new RegExp("(^|;)[ ]*" + cookieName + "=([^;]*)");
+  cookieMatch = cookiePattern.exec(document.cookie);
+  return cookieMatch ? window.decodeURIComponent(cookieMatch[2]) : 0;
+};
 
-  var _cdpCartListItems = '.table-cart';
-  var _cdpCartItemArr = '.media-line-item.line-item';
-  var _cdpBtnRemoveCart = '.item-remove';
-  var _cdpBtnConfirmRemoveCart = '.swal-cart-remove .swal-button-container .swal-button--confirm';
+var _cdpSetCookie = function (cookieName, value, msToExpire, path, domain, secure) {
+  var expiryDate;
+  if (msToExpire != undefined) {
+    expiryDate = new Date();
+    expiryDate.setTime(expiryDate.getTime() + msToExpire);
+  }
+  var valueData = value + "";
+  if (isNaN(value)) {
+    valueData = window.encodeURIComponent(value);
+  }
+  var cookieInfo = cookieName + "=" + valueData + (msToExpire ? ";expires=" + expiryDate.toGMTString() : "") + ";path=" + (path || "/") + (domain ? ";domain=" + domain : "") + (secure ? ";secure" : "");
+  document.cookie = cookieInfo;
+};
 
-  var _cdpSourceWebsite = 'Testing';
+var _cdpGetLeadTime = function () {
+  var d = new Date();
+  var m = d.getMonth() + 1;
+  if (parseInt(m) < 10) {
+    m = "0" + m;
+  }
 
-  // Utilities
-  function waitForElement(params) {
-    try {
-      var selector = params.selector;
-      var root;
-      var interval = params.interval || 500;
-      var loop = params.loop || 10;
-      var mode = params.mode || "single"; // mode: single | multiple
-      var type = params.type || "element"; // type: element | variable | xpath
-      var callback = params.callback;
-        if (typeof selector != 'string') {
-          return 0;
-        }
-        var counter = 0;
-        var interval = setInterval(
-        function () {
-          try {
-            counter++;
-            var el;
-            switch (type) {
-              case 'element': {
-                root = params.root || document;
-                el = root.querySelector(selector);
-                break;
-              }
-              case 'variable': {
-                root = params.root || window;
-                el = root[selector];
-                break;
-              }
-              case 'xpath': {
-                root = params.root || document;
-                el = document.evaluate(selector, root, null, XPathResult.ANY_TYPE, null);
-                break;
-              }
-            }
-            if (el) {
-              if (typeof callback == 'function') {
-              if (mode == 'multiple') {
-                switch (type) {
-                  case 'element': {
-                    el = root.querySelectorAll(selector);
-                    break;
-                  }
-                  case 'xpath': {
-                    var array = [];
-                    var iterate = el.iterateNext();
-                    while (iterate) {
-                      arrary = array.push(iterate);
-                      iterate = el.iterateNext();
-                    }
-                    el = array;
-                    break;
-                  }
+  var day = d.getDate();
+  if (parseInt(day) < 10) {
+    day = "0" + day;
+  }
+
+  var hour = d.getHours();
+  if (parseInt(hour) < 10) {
+    hour = "0" + hour;
+  }
+
+  var min = d.getMinutes();
+  if (parseInt(min) < 10) {
+    min = "0" + min;
+  }
+
+  var sec = d.getSeconds();
+  if (parseInt(sec) < 10) {
+    sec = "0" + sec;
+  }
+
+  var leadTime = d.getFullYear() + "-" + m + "-" + day + " " + hour + ":" + min + ":" + sec;
+
+  return leadTime;
+};
+
+var _cdpGetCart = function (callback) {
+  try {
+    var _cdpGetCartCounter = 0;
+    var _cdpIsProcessingCart = false;
+
+    var _cdpGetCartTimer = setInterval(function () {
+      _cdpGetCartCounter++;
+
+      if (typeof Haravan != "undefined" && Object.keys(Haravan).length) {
+        if (typeof Haravan.getCart == "function" && !_cdpIsProcessingCart) {
+          _cdpIsProcessingCart = true;
+          setTimeout(function () {
+            try {
+              Haravan.getCart(function (cart) {
+                _cdpIsProcessingCart = false;
+                clearInterval(_cdpGetCartTimer);
+
+                if (typeof callback == "function") {
+                  callback(cart);
                 }
-              }
-              else {
-                switch (type) {
-                  case 'xpath': {
-                    el = el.iterateNext();
-                    break;
-                  }
-                }
-              }
-              callback(el);
-              }
-              clearInterval(interval);
+              });
+            } catch (ex) {
+              console.log("cdp log: ", ex);
             }
-            if (counter > loop) {
-              clearInterval(interval);
-            }
-          }
-          catch (ex) {
-            console.log("cdp log: ", ex);
-          }
-        },
-        interval
-        );
-          return 1;
+          }, 500);
         }
-        catch (ex) {
-            console.log("cdp log: ", ex);
-            return 0;
+      }
+
+      if (_cdpGetCartCounter > 50) {
+        clearInterval(_cdpGetCartTimer);
+
+        _cdpGetCartTimer = null;
+
+        if (typeof callback == "function") {
+          callback(null);
         }
+      }
+    }, 100);
+  } catch (ex) {
+    console.log("cdp log:", ex);
+
+    if (typeof callback == "function") {
+      callback(null);
     }
+  }
+};
 
-  var _cdpGetCart = function (callback) {
-        try {
-            if (typeof Haravan != "undefined" && Object.keys(Haravan).length) {
-                waitForElement({
-                    type: 'variable',
-                    selector: 'getCart',
-                    root: Haravan,
-                    callback: function (getCart) {
+var _cdpGetProductDetail = function (callback, _handleId) {
+  try {
+    var _cdpGetProductDetailCounter = 0;
+    var _cdpIsProcessingProduct = false;
+
+    var _cdpGetProductDetailTimer = setInterval(function () {
+      _cdpGetProductDetailCounter++;
+
+      if (typeof HaravanAnalytics != "undefined" && Object.keys(HaravanAnalytics).length) {
+        var meta = HaravanAnalytics.meta;
+
+        if (typeof meta != "undefined" && Object.keys(meta).length) {
+          var productMeta = meta.product;
+
+          if (typeof productMeta != "undefined" && Object.keys(productMeta).length) {
+            var selectedVariant = productMeta.selected_or_first_available_variant;
+
+            if (typeof selectedVariant != "undefined" && Object.keys(selectedVariant).length) {
+              var sku = selectedVariant.sku;
+
+              if (typeof HaravanAnalytics != "undefined" && Object.keys(HaravanAnalytics).length) {
+                var handleId = _handleId || window.location.pathname.split("/").pop();
+
+                if (handleId) {
+                  if (typeof Haravan != "undefined" && Object.keys(Haravan).length) {
+                    if (typeof Haravan.getProduct == "function" && !_cdpIsProcessingProduct) {
+                      _cdpIsProcessingProduct = true;
+                      setTimeout(function () {
                         try {
-                            getCart(function (cart) {
-                                if (typeof callback == "function") {
-                                    callback(cart);
-                                }
-                            });
+                          Haravan.getProduct(handleId, function (product) {
+                            _cdpIsProcessingProduct = false;
+                            var haravan_product_id = product.id;
+                            var name = product.title;
+                            var image_url = product.featured_image;
+                            var page_url = "https://" + Haravan.domain + product.url;
+                            var main_category = document.querySelectorAll('div.main-breadcrumb ol li')[1].innerText.trim();
+                            var brand = product.vendor;
+
+                            var variant = null;
+                            for (var i = 0; i < product.variants.length; i++) {
+                              var currVariant = product.variants[i];
+
+                              if (currVariant.sku === sku) {
+                                variant = currVariant;
+
+                                break;
+                              }
+                            }
+
+                            if (variant) {
+                              var price = +variant.price / 100;
+                              var orginal_price = +variant.compare_at_price / 100 || price;
+
+                              var product_item = {
+                                type: "product",
+                                id: sku,
+                                sku: sku,
+                                name: name,
+                                image_url: image_url,
+                                page_url: page_url,
+                                haravan_product_id: haravan_product_id,
+                                parent_item_id: haravan_product_id,
+                                price: price,
+                                original_price: orginal_price,
+                                main_category: main_category,
+                                brand: brand
+                              };
+                              clearInterval(_cdpGetProductDetailTimer);
+
+                              if (typeof callback == "function") {
+                                callback(product_item);
+                              }
+                            }
+                          });
                         } catch (ex) {
-                            console.log("cdp log: ", ex);
+                          console.log("cdp log: ", ex);
                         }
+                      }, 500);
                     }
-                });
+                  }
+                }
+              }
             }
-        } catch (ex) {
-            console.log("cdp log:", ex);
-
-            if (typeof callback == "function") {
-                callback(null);
-            }
-        }
-    };
-  
-  class CDPTracking {
-    constructor() {
-      this.cdp_source = "Haravan";
-      this.customers = null;
-      //console.log("CDPTracking constructor");
-    }
-    
-    // helper functions
-
-    formatDate(date) {
-      let year = date.getFullYear();
-      let month = String(date.getMonth() + 1).padStart(2, "0");
-      let day = String(date.getDate()).padStart(2, "0");
-      let hours = String(date.getHours()).padStart(2, "0");
-      let minutes = String(date.getMinutes()).padStart(2, "0");
-      let seconds = String(date.getSeconds()).padStart(2, "0");
-  
-      // Assemble the formatted date string
-      let formattedDate =
-        year +
-        "-" +
-        month +
-        "-" +
-        day +
-        " " +
-        hours +
-        ":" +
-        minutes +
-        ":" +
-        seconds;
-      return formattedDate;
-    }
-
-    getCurrentVariantId(){
-      let variantIDSelect = document.getElementById("product-select");
-      let variantIDSelector = document.getElementById("product-selector");
-      if (variantIDSelect) {
-        return $('#product-select').val();
-      }
-      if (variantIDSelector) {
-        return $('#product-selector').val();
-      }
-    }
-    
-    getCurrentVariant(product, variantId) {
-      return product.variants.find((variant) => {
-        return variant.id == variantId;
-      });
-    }
-    
-    setCustomers(customer) {
-      this.customers = customer;
-    }
-    
-    getIdentifyTime() {
-      return this.formatDate(new Date());
-    }
-    
-    getCartItem(item, view_cart) {
-      let product = {
-        type: "product",
-        cdp_source: this.cdp_source,
-        id: item.variant_id,
-        name: item.product_title,
-        sku: item.sku,
-        page_url: window.location.href,
-        image_url: item.image,
-        brand: item.vendor,
-        main_category: item.product_type,
-        //variant: item.title,
-        option1: item.variant_options[0],
-        option2: item.variant_options[1],
-        option3: item.variant_options[2],
-        haravan_product_id: `${item.variant_id}`,
-        parent_item_id: item.sku,
-        is_parent: "false",
-        quantity: `${item.quantity}`,
-        source_website: _cdpSourceWebsite
-      };
-      if (view_cart) {
-        // product.line_item_unit_price = item.price / 100;
-        // product.line_item_discount_amount = (item.price - item.discounted_price) / 100;
-        // product.line_item_rounded_amount = item.discounted_price / 100;
-        product.page_url = window.location.origin + item.url,
-        product.price = item.price / 100;
-        product.original_price = item.price_original / 100;
-      }
-      return product;
-    }
-    setCookie(name, value) {
-      var date = new Date();
-      date.setTime(date.getTime() + 24 * 60 * 60 * 1000); // 24 hours
-      var expires = "; expires=" + date.toUTCString();
-  
-      document.cookie = name + "=" + (value || "") + expires + "; path=/";
-    }
-    getCookie(name) {
-      var nameEQ = name + "=";
-      var ca = document.cookie.split(";");
-      for (var i = 0; i < ca.length; i++) {
-        var c = ca[i];
-        while (c.charAt(0) == " ") c = c.substring(1, c.length);
-        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
-      }
-      return null;
-    }
-  // tracking functions
-    viewProduct(product, currentVariant, option1ValueEL, option2ValueEL, option3ValueEL, viewChild) {
-      let item = {
-        type: "product",
-        cdp_source: this.cdp_source,
-        id: currentVariant.id,
-        name: product.title,
-        sku: currentVariant.sku,
-        page_url: window.location.href,
-        image_url: `${product.featured_image}`,
-        price: currentVariant.price / 100,
-        original_price:
-          currentVariant.compare_at_price > 0
-            ? currentVariant.compare_at_price / 100
-            : currentVariant.price / 100,
-        brand: product.vendor,
-        main_category: product.type,
-        //variant: currentVariant.name,
-        haravan_product_id: currentVariant.id,
-        parent_item_id: currentVariant.sku,
-        is_parent: "false",
-        source_website: _cdpSourceWebsite
-      };
-      if(option1ValueEL){
-        item.option1 = option1ValueEL;
-      }
-      else if (currentVariant.option1 !== "") {
-        item.option1 = currentVariant.option1;
-      }
-      if(option2ValueEL){
-        item.option2 = option2ValueEL;
-      }
-      else if (currentVariant.option2 !== "") {
-        item.option2 = currentVariant.option2;
-      }
-      if(option3ValueEL){
-        item.option3 = option3ValueEL;
-      }
-      else if (currentVariant.option3 !== "") {
-        item.option3 = currentVariant.option3;
-      }
-
-      var titleLabel = "";
-      if(item.option1 && item.option2 && item.option3){
-        titleLabel = item.option1+' / '+item.option2+' / '+item.option3;
-      }
-      else if(item.option1 && item.option2){
-        titleLabel = item.option1+' / '+item.option2;
-      }
-      else if(item.option1){
-        titleLabel = item.option1;
-      }
-      if(titleLabel){
-        let titleIndex = product.variants.findIndex((variant) => variant.title.trim() == titleLabel.trim());
-        if (titleIndex !== -1 ) {
-          item.id = product.variants[titleIndex].id;
-          item.sku = product.variants[titleIndex].sku;
-          item.haravan_product_id = product.variants[titleIndex].id;
-          item.parent_item_id = product.variants[titleIndex].sku;
+          }
         }
       }
 
-      const trackingOptions = {
-        items: [item],
+      if (_cdpGetProductDetailCounter > 50) {
+        clearInterval(_cdpGetProductDetailTimer);
 
-        extra: {
-          identify_event: "view_product",
-          identify_time: this.getIdentifyTime(),
-        },
-      };
-      if (this.customers) {
-        // trackingOptions.dims = {
-        //   customers: this.customers,
-        // };
-        trackingOptions.extra.identify_id = this.customers.customer_id;
-      }
-      if(viewChild){
-        trackingOptions.extra.view_child = viewChild;
-      }else{
-        trackingOptions.extra.view_child = false;
-      }
-      web_event.track("product", "view", trackingOptions);
-    }
-    
-    addToCart(items, carts) {
-      let cart = carts;
-      if (!cart) return;
+        _cdpGetProductDetailTimer = null;
 
-      var quantityItem = document.querySelector(_cdpQuantityAddCart);
-      if(quantityItem){
-        quantityItem = quantityItem.value;
+        if (typeof callback == "function") {
+          callback(null);
+        }
       }
-      items.quantity = +quantityItem;
-      const trackingOptions = {
-        items: [items],
-  
-        extra: {
-          cart_subtotal: cart.total_price / 100,
-          cart_item_count: cart.item_count,
-          identify_time: this.getIdentifyTime(),
-          identify_event: "add_to_cart",
-          event_source: "add_to_cart",
-        },
-      };
-      if (this.customers) {
-        // trackingOptions.dims = {
-        //   customers: this.customers,
-        // };
-        trackingOptions.extra.identify_id = this.customers.customer_id;
-      }
-      web_event.track("product", "add_to_cart", trackingOptions);
-    }
-    
-    buyNow(items, carts) {
-      let cart = carts;
-      if (!cart) return;
+    }, 100);
+  } catch (ex) {
+    console.log("cdp log:", ex);
 
-      var quantityItem = document.querySelector(_cdpQuantityAddCart);
-      if(quantityItem){
-        quantityItem = quantityItem.value;
-      }
-      items.quantity = +quantityItem;
-      const trackingOptions = {
-        items: [items],
-  
-        extra: {
-          cart_subtotal: cart.total_price / 100,
-          cart_item_count: cart.item_count,
-          identify_time: this.getIdentifyTime(),
-          identify_event: "add_to_cart",
-          event_source: "buy_now",
-        },
-      };
-      if (this.customers) {
-        // trackingOptions.dims = {
-        //   customers: this.customers,
-        // };
-        trackingOptions.extra.identify_id = this.customers.customer_id;
-      }
-      web_event.track("product", "add_to_cart", trackingOptions);
-    }
-    
-    viewCart(carts) {
-      let cart = carts;
-      if (!cart) return;
-      let items = cart.items.map((item) => {
-        return this.getCartItem(item, true);
-      });
-      const trackingOptions = {
-        items,
-        extra: {
-          cart_subtotal: cart.total_price / 100,
-          cart_item_count: cart.item_count,
-          identify_time: this.getIdentifyTime(),
-          identify_event: "view_cart",
-        },
-      };
-      if (this.customers) {
-        // trackingOptions.dims = {
-        //   customers: this.customers,
-        // };
-        trackingOptions.extra.identify_id = this.customers.customer_id;
-      }
-      web_event.track("product", "view_cart", trackingOptions);
-    }
-    
-    removeFromCart(id, carts) {
-      let cart = carts;
-      let items = {
-          type: "product",
-          id: id,
-        };
-      const trackingOptions = {
-        items: [items],
-        extra: {
-          cart_subtotal: cart.total_price / 100,
-          cart_item_count: cart.item_count,
-          identify_time: this.getIdentifyTime(),
-          identify_event: "remove_cart",
-        },
-      };
-      if (this.customers) {
-        // trackingOptions.dims = {
-        //   customers: this.customers,
-        // };
-        trackingOptions.extra.identify_id = this.customers.customer_id;
-      }
-      web_event.track("product", "remove_cart", trackingOptions);
-    }
-    
-    userSignIn() {
-      if (!this.customers.customer_id) return;
-      web_event.track("user", "sign_in", {
-        dims: {
-          customers: {
-            customer_id: this.customers.customer_id,
-            name: this.customers.name,
-            email: this.customers.email,
-            phone: this.customers.phone,
-            is_customer_mollis: true
-          },
-        },
-        extra: {
-          identify_event: "sign_in",
-          identify_id: this.customers.customer_id,
-          identify_time: this.getIdentifyTime(),
-          name: this.customers.name,
-          email: this.customers.email,
-          phone: this.customers.phone
-        },
-      });
-    }
-    
-    userSignUp() {
-      if (!this.customers.customer_id) return;
-      web_event.track("user", "sign_up", {
-        dims: {
-          customers: {
-            customer_id: this.customers.customer_id,
-            name: this.customers.name,
-            email: this.customers.email,
-            phone: this.customers.phone,
-            is_customer_mollis: true
-          },
-        },
-        extra: {
-          identify_event: "sign_up",
-          identify_id: this.customers.customer_id,
-          identify_time: this.getIdentifyTime(),
-          name: this.customers.name,
-          email: this.customers.email,
-          phone: this.customers.phone
-        },
-      });
-    }
-    
-    identify() {
-      web_event.track("user", "identify", {
-        dims: {
-          customers: {
-            customer_id: this.customers.customer_id,
-            name: this.customers.name,
-            email: this.customers.email,
-            phone: this.customers.phone,
-            is_customer_mollis: true
-          },
-        },
-        extra: {
-          identify_event: "user_identify",
-          identify_id: this.customers.customer_id,
-          identify_time: this.getIdentifyTime(),
-          name: this.customers.name,
-          email: this.customers.email,
-          phone: this.customers.phone
-        },
-      });
-    }
-  
-    proudctSearch(products, src_search_term) {
-      const items = products.map((item) => {
-        return {
-          type: "product",
-          cdp_source: this.cdp_source,
-          id: item.variants[0].id,
-          name: item.title,
-          source_website: _cdpSourceWebsite
-        };
-      });
-      const trackingOptions = {
-        items: items,
-  
-        extra: {
-          src_search_term: src_search_term,
-          identify_time: this.getIdentifyTime(),
-          identify_event: "product_search",
-        },
-      };
-      if (this.customers) {
-        trackingOptions.extra.identify_id = this.customers.customer_id;
-        // trackingOptions.dims = {
-        //   customers: this.customers,
-        // };
-      }
-  
-      web_event.track("browsing", "product_search", trackingOptions);
-    }
-    
-    checkout() {
-      let cart = this.getCart();
-      if (!cart) return;
-      let items = cart.items;
-      items = items.map((item) => {
-        return {
-          type: "product",
-          cdp_source: this.cdp_source,
-          id: item.id,
-          name: item.product_title,
-          line_item_unit_price: item.price / 100,
-          line_item_discount_amount: (item.price - item.discounted_price) / 100,
-          line_item_rounded_amount: item.discounted_price / 100,
-          quantity: `${item.quantity}`,
-          line_item_quantity: `${item.quantity}`,
-          source_website: _cdpSourceWebsite
-        };
-      });
-      const trackingOptions = {
-        items: items,
-  
-        extra: {
-          cart_subtotal: cart.items_subtotal_price / 100,
-          cart_item_count: cart.item_count,
-          identify_time: this.getIdentifyTime(),
-          identify_event: "checkout",
-        },
-      };
-      if (this.customers) {
-        trackingOptions.dims = {
-          customers: this.customers,
-        };
-        trackingOptions.extra.identify_id = this.customers.customer_id;
-      }
-      web_event.track("product", "checkout", trackingOptions);
+    if (typeof callback == "function") {
+      callback(null);
     }
   }
-// Init CDP tracking
-window.cdpTracking = new CDPTracking();
+};
 
-// Customer event
-  if (typeof Haravan !== 'undefined' && Haravan.customer) {
-    const customer = Haravan.customer;
-    const phone = customer.default_address ? customer.default_address.phone.replace('+84', '0') : '';
-    let customer_id = '';
-
-    if (phone !== "") {
-      customer_id = window._cdpEventFunction.md5(phone);
-    }
-    const customerData = {
-      customer_id: customer_id,
-      name: customer.name,
-      email: customer.email,
-      phone: phone,
-    };
-
-    if (customerData.customer_id) {
-      window.cdpTracking.setCustomers(customerData);
-      window.localStorage.setItem("cdp_customer", JSON.stringify(customerData));
-      const loginSubmitted = sessionStorage.getItem('loginSubmitted');
-      const registerSubmitted = sessionStorage.getItem('registerSubmitted');
-      
-      if (registerSubmitted && !loginSubmitted) {
-        window.cdpTracking.userSignUp();
-        sessionStorage.removeItem('registerSubmitted');
-      }
-      if (loginSubmitted) {
-        window.cdpTracking.userSignIn();
-      }
-      sessionStorage.removeItem('loginSubmitted');
-      
-      const identityUser = window.cdpTracking.getCookie('cdp_identity_user');
-      if (!identityUser) {
-        window.cdpTracking.setCookie('cdp_identity_user', true);
-        window.cdpTracking.identify();
-      }
-    }
-  } else {
-    window.localStorage.removeItem('cdp_customer');
-  }
-
-  // View product event
-  if (window.location.pathname.includes('/products/')) {
-    console.log('view_product');
-    const product = Haravan.product;
-    window.cdpTracking.currentProduct = product;
-    let currentVariant = window.cdpTracking.getCurrentVariant(product, product.selected_or_first_available_variant.id);
-    window.cdpTracking.viewProduct(product, currentVariant);
-
-    // Option selection logic
-    const setupOptionListener = (selector, optionIndex) => {
-      const buttons = document.querySelectorAll(selector);
-      buttons.forEach(button => {
-        button.addEventListener('click', () => {
-          setTimeout(() => {
-            const optionValue = button.querySelector('input').value;
-            const options = [
-              document.querySelector("#variant-swatch-0 .sd span"),
-              document.querySelector("#variant-swatch-1 .sd span"),
-              document.querySelector("#variant-swatch-2 .sd span")
-            ].map(el => el ? el.textContent : null);
-            options[optionIndex] = optionValue;
-            window.cdpTracking.viewProduct(product, currentVariant, ...options, true);
-          }, 0);
-        });
-      });
-    };
-
-    setupOptionListener('#variant-swatch-0 .swatch-element label', 0);
-    setupOptionListener('#variant-swatch-1 .swatch-element label', 1);
-    setupOptionListener('#variant-swatch-2 .swatch-element label', 2);
-
-    // Add to cart
-    waitForElement({
-      type: 'element',
-      selector: _cdpBtnAddtocart,
-      callback: function (btnAddtocart) {
-        btnAddtocart.addEventListener("click", function () {
-          let currentVariantAddtocart = window.cdpTracking.getCurrentVariant(product, window.cdpTracking.getCurrentVariantId());
-          let itemAdded = {
-            type: "product",
-            cdp_source: this.cdp_source,
-            id: currentVariantAddtocart.id,
-            name: product.title,
-            sku: currentVariantAddtocart.sku,
-            page_url: window.location.href,
-            image_url: product.featured_image,
-            price: currentVariantAddtocart.price / 100,
-            original_price: currentVariantAddtocart.compare_at_price > 0
-              ? currentVariantAddtocart.compare_at_price / 100
-              : currentVariantAddtocart.price / 100,
-            brand: product.vendor,
-            main_category: product.product_type,
-            haravan_product_id: `${currentVariantAddtocart.id}`,
-            parent_item_id: currentVariantAddtocart.sku,
-            is_parent: "false",
-            source_website: _cdpSourceWebsite
+var cdpProductDetailTracking = function () {
+  try {
+    if (window.location.href.includes("/products")) {
+      _cdpGetProductDetail(function (products) {
+        if (products) {
+          var dataProps = {
+            items: [products],
           };
 
-          ['option1', 'option2', 'option3'].forEach(option => {
-            if (currentVariantAddtocart[option] !== "") {
-              itemAdded[option] = currentVariantAddtocart[option];
+          web_event.queue.push(["track", "product", "view", dataProps]);
+          // console.log(dataProps)
+          // button buy now
+          jQuery("button.buynow-detail").on("click", function () {
+            try {
+              _cdpGetProductDetail(function (products) {
+                if (products) {
+                  var quantity = +document.querySelector('input#pdQuantity.input-text.qty.text').value;
+                  products.quantity = quantity;
+
+                  var dataProps = {
+                    items: [products],
+                    extra: {
+                      event_source: "buy_now",
+                    },
+                  };
+
+                  _cdpGetCart(function (cart) {
+                    if (cart) {
+                      dataProps.extra.cart_subtotal = cart.total_price;
+                      dataProps.extra.cart_item_count = cart.item_count;
+
+                      web_event.track("product", "buy_now", dataProps);
+                      // console.log(dataProps)
+                    }
+                  });
+                }
+              });
+            } catch (ex) {
+              console.log("cdp log: ", ex);
             }
           });
 
-          _cdpGetCart(function (cart) {
-            if (cart) {
-              window.cdpTracking.addToCart(itemAdded, cart);
+          // button add to cart
+          jQuery("button.addtocart-detail").on("click", function () {
+            try {
+              _cdpGetProductDetail(function (products) {
+                if (products) {
+                  var quantity = +document.querySelector('input#pdQuantity.input-text.qty.text').value;
+                  products.quantity = quantity;
+
+                  var dataProps = {
+                    items: [products],
+                    extra: {
+                      event_source: "add_to_cart",
+                    },
+                  };
+
+                  _cdpGetCart(function (cart) {
+                    if (cart) {
+                      dataProps.extra.cart_subtotal = cart.total_price/100;
+                      dataProps.extra.cart_item_count = cart.item_count;
+
+                      web_event.track("product", "add_to_cart", dataProps);
+                      // console.log(dataProps)
+                    }
+                  });
+                }
+              });
+            } catch (ex) {
+              console.log("cdp log: ", ex);
             }
-          });
-        });
-      }
-    });
-
-    // Buy now
-    // (Similar to Add to cart, but with buyNow instead of addToCart)
-  }
-
-  // View cart
-  if (window.location.pathname.includes('/cart')) {
-    const onRemoveCart = function (handleId, cartItems, carts) {
-      return function () {
-        const removingProduct = cartItems.find(item => item.variant_id == handleId);
-        const id = removingProduct.variant_id;
-        const btnConfirm = document.querySelector(_cdpBtnConfirmRemoveCart);
-        if (btnConfirm) {
-          btnConfirm.addEventListener("click", function () {
-            setTimeout(() => {
-              window.cdpTracking.removeFromCart(id, carts);
-            }, 0);
           });
         }
-      };
-    };
+      });
+    }
+  } catch (ex) {
+    console.log("cdp log:", ex);
+  }
+};
 
-    waitForElement({
-      type: 'element',
-      selector: _cdpCartListItems,
-      callback: function (cartListItem) {
-        _cdpGetCart(function (cart) {
+var cdpActionClickTracking = function () {
+  try {
+    // Remove Item cart from view cart popup
+    var tableCartEl = document.querySelector("table#cart-view");
+    if (tableCartEl) {
+      _cdpGetCart(function (cart) {
+        try {
           if (cart) {
-            window.cdpTracking.viewCart(cart);
-            const cartItemArr = cartListItem.querySelectorAll(_cdpCartItemArr);
-            cartItemArr.forEach(item => {
-              const btnRemove = item.querySelector(_cdpBtnRemoveCart);
-              const handleId = item.getAttribute("data-variant-id");
-              btnRemove.addEventListener("click", onRemoveCart(handleId, cart.items, cart));
+            var cartItems = cart.items;
+            if (cartItems.length) {
+              jQuery("table#cart-view tr.item_2 td span.remove_link.remove-cart a").each(function () {
+                try {
+                  jQuery(this).on("click", function () {
+                    try {
+                      var handleId = jQuery(this).closest("td").find("a.pro-title-view").attr("href").toString().replace("/products/", "");
+
+                      var removingProduct;
+                      for (var i = 0; i < cartItems.length; i++) {
+                        if (cartItems[i] && cartItems[i].handle === handleId) {
+                          removingProduct = cartItems[i];
+                          break;
+                        }
+                      }
+
+                      if (removingProduct) {
+                        var sku = removingProduct.sku;
+
+                        if (sku) {
+                          var product_item = {
+                            type: "product",
+                            id: sku,
+                          };
+
+                          var dataProps = {
+                            items: [product_item],
+                            extra: {
+                              cart_subtotal: cart.total_price,
+                              cart_item_count: cart.item_count,
+                            },
+                          };
+
+                          web_event.track("product", "remove_cart", dataProps);
+                        }
+                      }
+                    } catch (ex) {
+                      console.log("cdp log: ", ex);
+                    }
+                  });
+                } catch (ex) {
+                  console.log("cdp log: ", ex);
+                }
+              });
+            }
+          }
+        } catch (ex) {
+          console.log("cdp log:", ex);
+        }
+      });
+    }
+
+    // Remove Item cart from view cart page
+    if (window.location.href.includes("/cart")) {
+      var tableCartEl = document.querySelectorAll('tr.line-item-container');
+      if (tableCartEl) {
+        try {
+          for(var i = 0;i< tableCartEl.length;i++)
+          {
+            curr= tableCartEl[i]
+            sku_remove = curr.querySelector('td.item').querySelectorAll('p.sku_item')[1].innerText.replace('Mã SP:','').trim()
+            name_remove = curr.querySelector('td.item a').innerText
+            var allcart_delete = curr.querySelector('td.remove')
+            jQuery(allcart_delete).on("click", function () {
+              try {
+                var productRemoving = sku_remove
+                if (productRemoving) {
+                  var product_item = {
+                    type: "product",
+                    id: productRemoving,
+                    name: name_remove
+                  };
+                  var dataProps = {
+                    items: [product_item],
+                    extra: {
+                      cart_subtotal: +document.querySelector('span.total_price').innerText.replace(/\D/g, ''),
+                    },
+                  };
+                  web_event.track("product", "remove_cart", dataProps);
+                  // console.log(dataProps)
+                }
+
+              } catch (ex) {
+                console.log("cdp log: ", ex);
+              }
             });
+          }
+          
+        } catch (ex) {
+          console.log("cdp log: ", ex);
+        }
+
+      }
+    }
+  } catch (ex) {
+    console.log("cdp log:", ex);
+  }
+};
+
+var cdpPageTracking = function () {
+  try {
+    // View cart
+    if (window.location.href.includes("/cart")) {
+      _cdpGetCart(function (cart) {
+        try {
+          if (cart) {
+            var cartItems = cart.items;
+            if (cartItems.length) {
+              var items = [];
+              for (var i = 0; i < cartItems.length; i++) {
+                var curr = cartItems[i];
+                var sku = curr.sku;
+                var name = curr.title;
+                var quantity = curr.quantity;
+                var price = curr.price / 100;
+                var original_price = curr.price_original / 100 || curr.price / 100;
+                var sale_price = curr.line_price / 100;
+
+                items.push({
+                  type: "product",
+                  id: sku,
+                  name: name,
+                  price: price,
+                  original_price: original_price,
+                  quantity: quantity,
+                  line_item_unit_price: price,
+                  line_Item_rounded_amount: sale_price,
+                  line_item_quantity: quantity
+                });
+              }
+
+              var dataProps = {
+                items: items,
+                extra: {
+                  cart_subtotal: cart.total_price / 100,
+                  cart_item_count: cart.item_count,
+                },
+              };
+
+              web_event.queue.push(["track", "product", "view_cart", dataProps]);
+            }
+          }
+        } catch (ex) {
+          console.log("cdp log: ", ex);
+        }
+      });
+    }
+
+    // Checkout
+    else if (window.location.href.includes("/checkouts")) {
+      var currentStep = jQuery("div.step div.step-sections").attr("step");
+
+      if (+currentStep == 1) {
+        _cdpGetCart(function (cart) {
+          try {
+            if (cart) {
+              var items = [];
+              var extra = {
+                page_type: "checkout",
+                page_category: "cart",
+                currency: HaravanAnalytics.meta.currency,
+              };
+
+              for (var i = 0; i < cart.items.length; i++) {
+                var curr = cart.items[i];
+
+                var sku = curr.sku;
+                var name = curr.title;
+                var quantity = curr.quantity;
+                var price = curr.price / 100;
+
+                items.push({
+                  type: "product",
+                  id: sku,
+                  sku: sku,
+                  name: name,
+                  price: price,
+                  quantity: quantity,
+                });
+              }
+
+              extra.revenue = cart.total_price / 100;
+
+              var dataProps = {
+                items: items,
+                extra: extra,
+              };
+
+              web_event.queue.push(["track", "product", "checkout", dataProps]);
+            }
+          } catch (ex) {
+            console.log("cdp log: ", ex);
           }
         });
       }
-    });
-  }
-
-  // Sign in
-  waitForElement({
-    type: 'element',
-    selector: _cdpFormSignIn,
-    callback: function (formLogin) {
-      formLogin.addEventListener('submit', function() {
-        sessionStorage.setItem('loginSubmitted', 1);
-      });
     }
-  });
 
-  // Sign up
-  if (window.location.href.includes("/account/register")) {
-    waitForElement({
-      type: 'element',
-      selector: _cdpFormSignUp,
-      callback: function (formSignUp) {
-        formSignUp.addEventListener('submit', function() {
-          sessionStorage.setItem('registerSubmitted', 1);
+    // Product Search
+    else if (window.location.href.includes("/search")) {
+      //var searchKeyword = jQuery('div.header-search input[name="q"]').val().trim();
+
+      var searchKeyword = document.querySelector('p.subtext-result strong').innerText.split('&&')[0].replace('"', '');
+
+      if (searchKeyword) {
+        var dataProps = {
+          extra: {
+            src_search_term: searchKeyword,
+          },
+        };
+
+        web_event.queue.push(["track", "browsing", "product_search", dataProps]);
+      }
+    }
+  } catch (ex) {
+    console.log("cdp log:", ex);
+  }
+};
+
+var cdpPurchaseTracking = function () {
+  try {
+    if (window.location.href.includes("/checkouts") && window.location.href.includes("/thank_you")) {
+      var cdpPurchaseTrackingCounter = 0;
+
+      var cdpPurchaseTrackingTimer = setInterval(function () {
+        cdpPurchaseTrackingCounter++;
+
+        if (typeof Haravan != "undefined" && Object.keys(Haravan).length) {
+          var checkoutInfo = Haravan.checkout;
+          if (typeof checkoutInfo != "undefined" && Object.keys(checkoutInfo).length) {
+            var source = checkoutInfo.source_name;
+            var orderId = checkoutInfo.order_number;
+
+            var billingAddress = checkoutInfo.billing_address;
+            var billingName = billingAddress.full_name;
+            var billingPhone = billingAddress.phone;
+
+            var shippingAddress = checkoutInfo.shipping_address;
+            var address = shippingAddress.address1;
+            var country = shippingAddress.country;
+            var district = shippingAddress.district;
+            var province = shippingAddress.province;
+            var ward = shippingAddress.ward;
+
+            var shippingName = shippingAddress.full_name;
+            var shippingPhone = shippingAddress.phone;
+
+            var shippingRate = checkoutInfo.shipping_rate;
+            var shippingFee = shippingRate.price;
+
+            var discountInfo = checkoutInfo.discount;
+            var discountCode = discountInfo.code;
+            var discountAmount = discountInfo.amount;
+
+            var subTotal = checkoutInfo.subtotal_price;
+            var total = checkoutInfo.total_price;
+
+            var orderItems = [];
+            for (var i = 0; i < checkoutInfo.line_items.length; i++) {
+              var item = checkoutInfo.line_items[i];
+
+              var sku = item.sku;
+              var name = item.title;
+              var quantity = +item.quantity;
+              var sale_price = +item.line_price;
+              var unit_price = +item.price;
+
+              orderItems.push({
+                type: "product",
+                id: sku,
+                name: name,
+                line_item_rounded_amount: sale_price,
+                line_item_unit_price: unit_price,
+                quantity: quantity
+              });
+            }
+
+            var customer_id = window._cdpEventFunction.md5(billingPhone);
+            var customerData = {
+              id: customer_id,
+              name: billingName,
+              phone: billingPhone,
+            };
+
+            var purchaseData = {
+              customer_id: customer_id,
+              customer_name: billingName,
+              customer_phone: billingPhone,
+              shipping_name: shippingName,
+              shipping_phone: shippingPhone,
+              shipping_address: [address, ward, district, province, country].join(", "),
+              id: orderId,
+              name: orderId,
+              order_id: orderId,
+              discount_amount: +discountAmount,
+              shipping_amount: +shippingFee,
+              subtotal_price: +subTotal,
+              total_price: +total,
+              revenue: +total      
+            };
+
+            var extra = {
+              order_id: orderId,
+              revenue: +total,
+              customer_id: customer_id,
+              customer_name: billingName,
+              phone: billingPhone,
+              address: shippingAddress,
+              identify_event: "purchase",
+              identify_time: _cdpGetLeadTime(),
+            };
+
+            if (discountCode) {
+              purchaseData.promotion_code = discountCode;
+              extra.promotion_code = discountCode;
+              extra.discount_amount = discountAmount;
+
+              var extraPromo = {
+                cdp_property_id: 564990840,
+              };
+              var dataPropsPromo = {
+                items: [
+                  {
+                    type: "promotion_code",
+                    id: discountCode,
+                    name: discountCode,
+                    code_status: 4,
+                  },
+                ],
+                dims: {
+                  purchase: {
+                    id: orderId,
+                  },
+                },
+                extra: extraPromo,
+              };
+
+              web_event.queue.push(["track", "promotion_code", "used", dataPropsPromo]);
+            }
+
+            var cookieName = "_cdp_purchase_tracking_order";
+            var cookieOrder = _cdpGetCookie(cookieName);
+
+            if (!cookieOrder || !cookieOrder.includes(orderId)) {
+              _cdpSetCookie(cookieName, orderId + "," + cookieOrder);
+
+              var dataPropsPurchase = {
+                items: orderItems,
+                dims: {
+                  customers: customerData,
+                  purchase: purchaseData,
+                },
+                extra: extra,
+              };
+
+              web_event.queue.push(["track", "product", "purchase", dataPropsPurchase]);
+            }
+
+            clearInterval(cdpPurchaseTrackingTimer);
+          }
+        }
+
+        if (cdpPurchaseTrackingCounter > 50) {
+          clearInterval(cdpPurchaseTrackingTimer);
+        }
+      }, 100);
+    }
+  } catch (ex) {
+    console.log("cdp log: ", ex);
+  }
+};
+
+var cdpIdentifyTracking = function () {
+  try {
+    var cdpIdentifyTrackingCounter = 0;
+
+    var cdpIdentifyTrackingTimer = setInterval(function () {
+      try {
+        cdpIdentifyTrackingCounter++;
+
+        if (typeof identify_str != "undefined" && identify_str) {
+          var identifyInfo = decodeURI(identify_str);
+          try {
+            identifyInfo = JSON.parse(identifyInfo);
+          } catch (ex) { }
+
+          if (typeof identifyInfo != "undefined" && Object.keys(identifyInfo).length) {
+            var user_name = identifyInfo.name;
+            var email = identifyInfo.email;
+            var phone = identifyInfo.phone;
+
+            var customers = {};
+            var customer_id = null;
+
+            var extra = {};
+
+            var dataProps = {};
+
+            if (phone) {
+              customer_id = window._cdpEventFunction.md5(phone);
+
+              extra.phone = phone;
+              extra.identity_id = customer_id;
+              extra.identify_type = "exact";
+            }
+
+            if (customer_id && user_name) {
+              customers = {
+                customer_id: customer_id,
+                name: user_name,
+                phone: phone,
+              };
+            }
+
+            if (email) {
+              customers.email = email;
+              extra.email = email;
+            }
+
+            if (customers.customer_id && customers.name) {
+              dataProps = {
+                dims: {
+                  customers: customers,
+                },
+                extra: extra,
+              };
+
+              var cookieName = "_cdp_identify_tracking";
+              var cookieCustomer = _cdpGetCookie(cookieName);
+
+              if (!cookieCustomer) {
+                _cdpSetCookie(cookieName, true);
+
+                web_event.queue.push(["track", "user", "identify", dataProps]);
+              }
+
+              clearInterval(cdpIdentifyTrackingTimer);
+            }
+          }
+        }
+
+        if (cdpIdentifyTrackingCounter > 50) {
+          clearInterval(cdpIdentifyTrackingTimer);
+        }
+      } catch (ex) {
+        console.log("cdp log: ", ex);
+      }
+    }, 100);
+  } catch (ex) {
+    console.log("cdp log: ", ex);
+  }
+};
+
+var cdpSignInTracking = function () {
+  try {
+    if (window.location.href.includes("/account") && document.referrer.includes("/login")) {
+      var cdpSignInTrackingCounter = 0;
+
+      var cdpSignInTrackingTimer = setInterval(function () {
+        cdpSignInTrackingCounter++;
+
+        if (typeof identify_str != "undefined" && identify_str) {
+          var identifyInfo = decodeURI(identify_str);
+          try {
+            identifyInfo = JSON.parse(identifyInfo);
+          } catch (ex) { }
+
+          if (typeof identifyInfo != "undefined" && Object.keys(identifyInfo).length) {
+            var user_name = identifyInfo.name;
+            var email = identifyInfo.email;
+            var phone = identifyInfo.phone;
+
+            var customers = {};
+            var customer_id = null;
+
+            var extra = {};
+
+            if (phone) {
+              customer_id = window._cdpEventFunction.md5(phone);
+
+              extra.phone = phone;
+              extra.identity_id = customer_id;
+              extra.identify_type = "exact";
+            }
+
+            if (customer_id && user_name) {
+              customers = {
+                customer_id: customer_id,
+                name: user_name,
+                phone: phone,
+              };
+            }
+
+            if (email) {
+              customers.email = email;
+              extra.email = email;
+            }
+
+            if (customers.customer_id && customers.name) {
+              var dataProps = {
+                dims: {
+                  customers: customers,
+                },
+                extra: extra,
+              };
+
+              var cookieName = "_cdp_signin_tracking";
+              var cookieCustomer = _cdpGetCookie(cookieName);
+
+              if (!cookieCustomer) {
+                _cdpSetCookie(cookieName, true);
+
+                web_event.track("user", "sign_in", dataProps);
+              }
+
+              var cookieName = "_cdp_identify_tracking";
+              var cookieCustomer = _cdpGetCookie(cookieName);
+
+              if (!cookieCustomer) {
+                _cdpSetCookie(cookieName, true);
+
+                web_event.queue.push(["track", "user", "identify", dataProps]);
+              }
+
+              clearInterval(cdpSignInTrackingTimer);
+            }
+          }
+        }
+
+        if (cdpSignInTrackingCounter > 50) {
+          clearInterval(cdpSignInTrackingTimer);
+        }
+      }, 100);
+    }
+  } catch (ex) {
+    console.log("cdp log: ", ex);
+  }
+};
+
+var cdpSignUpTracking = function () {
+  try {
+    jQuery("form#create_customer").on("submit", function () {
+      try {
+        var firstname = jQuery("input#first_name").val().trim();
+        var lastname = jQuery("input#last_name").val().trim();
+        var email = jQuery("input#email").val().trim();
+        var telephone = jQuery("input#phone").val().trim();
+        var childBirthday = jQuery("input#birthday").val().trim();
+
+        var signupInfo = JSON.stringify({
+          email: email,
+          fullname: lastname + " " + firstname,
+          telephone: telephone,
+          childBirthday: childBirthday,
         });
+        localStorage.setItem("_cdp_signup_tracking", signupInfo);
+      } catch (ex) {
+        console.log("cdp log: ", ex);
       }
     });
-  }
 
-  // Search product event
-  if (window.location.pathname.includes('/search')) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const searchTerm = urlParams.get('q');
-    if (searchTerm) {
-      const products = window.searchResults || []; // Assume search results are provided globally
-      window.cdpTracking.proudctSearch(products, searchTerm);
+    if (window.location.href.includes("/account")) {
+      var signupInfo = localStorage.getItem("_cdp_signup_tracking");
+
+      if (signupInfo) {
+        signupInfo = JSON.parse(signupInfo);
+
+        var email = signupInfo.email;
+        var fullname = signupInfo.fullname;
+        var telephone = signupInfo.telephone;
+
+        var extra = {};
+
+        var customer_id = null;
+        var customers = {};
+
+        if (telephone) {
+          customer_id = window._cdpEventFunction.md5(telephone);
+
+          extra.phone = telephone;
+          extra.identity_id = customer_id;
+          extra.identify_type = "exact";
+        }
+
+        if (customer_id && fullname) {
+          customers = {
+            customer_id: customer_id,
+            name: fullname,
+            phone: telephone,
+          };
+        }
+
+        if (email) {
+          customers.email = email;
+          extra.email = email;
+        }
+
+        if (customers.customer_id && customers.name) {
+          var cookieName = "_cdp_signup_tracking";
+          var cookieCustomer = _cdpGetCookie(cookieName);
+
+          if (!cookieCustomer) {
+            var dataProps = {
+              dims: {
+                customers: customers,
+              },
+              extra: extra,
+            };
+
+            _cdpSetCookie(cookieName, true);
+            localStorage.removeItem("_cdp_signup_tracking");
+
+            web_event.track("user", "sign_up", dataProps);
+          }
+        }
+      }
     }
+  } catch (ex) {
+    console.log("cdp log: ", ex);
   }
+};
+
+var cdpSignOutTracking = function () {
+  try {
+    jQuery('a[href*="/logout"]').each(function () {
+      try {
+        jQuery(this).on("click", function () {
+          try {
+            _cdpSetCookie("_cdp_identify_tracking", "", -1);
+            _cdpSetCookie("_cdp_signin_tracking", "", -1);
+            _cdpSetCookie("_cdp_signup_tracking", "", -1);
+          } catch (ex) {
+            console.log("cdp log: ", ex);
+          }
+        });
+      } catch (ex) {
+        console.Log("cdp log: ", ex);
+      }
+    });
+  } catch (ex) {
+    console.log("cdp log: ", ex);
+  }
+};
+
+setTimeout(function () {
+  var indexCount = 0;
+  var timer = setInterval(function () {
+    indexCount++;
+    if (typeof jQuery != "undefined") {
+      clearInterval(timer);
+
+      jQuery(document).ready(function () {
+        window.cdpProductDetailTracking();
+        window.cdpActionClickTracking();
+
+        window.cdpPageTracking();
+        window.cdpPurchaseTracking();
+
+        window.cdpIdentifyTracking();
+        window.cdpSignInTracking();
+        window.cdpSignUpTracking();
+        window.cdpSignOutTracking();
+      });
+    }
+
+    if (indexCount > 50) {
+      clearInterval(timer);
+    }
+  }, 100);
+}, 2000);
