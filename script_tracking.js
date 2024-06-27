@@ -157,8 +157,7 @@ var _cdpGetProductDetail = function (callback, _handleId) {
                                 haravan_product_id: haravan_product_id,
                                 parent_item_id: haravan_product_id,
                                 price: price,
-                                original_price: orginal_price,
-                                brand: brand
+                                original_price: orginal_price
                               };
                               clearInterval(_cdpGetProductDetailTimer);
 
