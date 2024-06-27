@@ -127,6 +127,7 @@ var _cdpGetProductDetail = function (callback, _handleId) {
                       setTimeout(function () {
                         try {
                           Haravan.getProduct(handleId, function (product) {
+                            console.log('product: ',product);
                             _cdpIsProcessingProduct = false;
                             var haravan_product_id = product.id;
                             var name = product.title;
