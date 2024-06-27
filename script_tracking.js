@@ -1,5 +1,5 @@
 
-  //console.log('request.page_type', "{{ template }}" );
+  console.log('request.page_type', "{{ template }}" );
   // Constants
   var _cdpBtnAddtocart = '#add-to-cart';
   var _cdpBtnBuyNow = '#buy-now';
@@ -828,6 +828,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // View product event
   if (window.location.pathname.includes('/products/')) {
+    console.log('view_product');
     const product = Haravan.product;
     window.cdpTracking.currentProduct = product;
     let currentVariant = window.cdpTracking.getCurrentVariant(product, product.selected_or_first_available_variant.id);
